@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>RAG Simulator</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+body{
+    font-family:'Inter',sans-serif;
+    background:#0f172a;
+    color:white;
+    overflow-x:hidden;
+}
+
+body::before{
+    content:'';
+    position:fixed;
+    inset:0;
+    background:
+        radial-gradient(circle at top left,#2563eb33,transparent 30%),
+        radial-gradient(circle at bottom right,#9333ea33,transparent 30%);
+    z-index:-1;
+}
+
+.container{
+    width:95%;
+    max-width:1400px;
+    margin:auto;
+    padding:30px 0 60px;
+}
+
+.header{
+    text-align:center;
+    margin-bottom:40px;
+}
+
+.header h1{
+    font-size:52px;
+    font-weight:700;
+    background:linear-gradient(90deg,#60a5fa,#c084fc);
+    -webkit-background-clip:text;
+    -webkit-text-fill-color:transparent;
+}
+
+.header p{
+    color:#cbd5e1;
+    margin-top:10px;
+    font-size:18px;
+}
+
+.grid{
+    display:grid;
+    grid-template-columns: 1fr 420px;
+    gap:24px;
+}
+
+.card{
+    background:rgba(15,23,42,0.7);
+    border:1px solid rgba(255,255,255,0.1);
+    border-radius:24px;
+    padding:24px;
+    backdrop-filter: blur(12px);
+    box-shadow:0 10px 30px rgba(0,0,0,0.3);
+}
+
+.section-title{
+    font-size:22px;
+    margin-bottom:18px;
+    color:#93c5fd;
+}
+
+.documents{
+    display:grid;
+    grid-template-columns: repeat(auto-fit,minmax(240px,1fr));
+    gap:16px;
+    margin-bottom:24px;
+}
+
+.doc{
+    background:#1e293b;
+    border:1px solid transparent;
+    padding:18px;
+    border-radius:18px;
+    transition:0.3s;
+    cursor:pointer;
+}
+
+.doc:hover{
+    transform:translateY(-3px);
+    border-color:#60a5fa;
+}
+
+.doc.active{
+    border-color:#22c55e;
+    background:#14532d;
+}
+
+.doc h3{
+    font-size:17px;
+    margin-bottom:10px;
+}
+
+.doc p{
+    color:#cbd5e1;
+    font-size:14px;
+    line-height:1.6;
+}
+
+textarea{
+    width:100%;
+    min-height:110px;
+    background:#0f172a;
+    border:1px solid #334155;
+    border-radius:18px;
+    color:white;
+    padding:18px;
+    resize:none;
+    font-size:15px;
+    margin-bottom:18px;
+}
+
+textarea:focus{
+    outline:none;
+    border-color:#60a5fa;
+}
+
+button{
+    background:linear-gradient(90deg,#2563eb,#7c3aed);
+    border:none;
+    padding:14px 24px;
+    border-radius:14px;
+    color:white;
+    font-weight:600;
+    cursor:pointer;
+    transition:0.3s;
+    width:100%;
+    font-size:16px;
+}
+
+button:hover{
+    transform:scale(1.02);
+}
+
+.pipeline{
+    display:flex;
+    flex-direction:column;
+    gap:18px;
+}
+
+.step{
+    background:#111827;
+    border-radius:18px;
+    padding:18px;
+    border-left:5px solid #334155;
+    opacity:0.5;
+    transform:translateX(20px);
+    transition:0.5s;
+}
+
+.step.active{
+    opacity:1;
+    transform:translateX(0);
+    border-left-color:#60a5fa;
+    background:#1e293b;
+}
+
+.step h4{
+    margin-bottom:8px;
+    color:#93c5fd;
+}
+
+.step p{
+    font-size:14px;
+    color:#cbd5e1;
+    line-height:1.6;
+}
+
+.answer-box{
+    margin-top:24px;
+    background:#0f172a;
+    border-radius:18px;
+    padding:20px;
+    border:1px solid #334155;
+    min-height:180px;
+}
+
+.answer-box h3{
+    margin-bottom:14px;
+    color:#a5f3fc;
+}
+
+.answer-text{
+    line-height:1.8;
+    color:#e2e8f0;
+}
+
+.highlight{
+    color:#22c55e;
+    font-weight:600;
+}
+
+.vector{
+    display:inline-block;
+    background:#1e3a8a;
+    color:#bfdbfe;
+    padding:5px 10px;
+    border-radius:10px;
+    margin:4px;
+    font-size:13px;
+}
+
+.tag{
+    display:inline-block;
+    background:#312e81;
+    color:#c4b5fd;
+    padding:5px 10px;
+    border-radius:10px;
+    margin-top:10px;
+    font-size:12px;
+}
+
+.progress{
+    width:100%;
+    height:8px;
+    background:#1e293b;
+    border-radius:999px;
+    overflow:hidden;
+    margin-top:20px;
+}
+
+.progress-bar{
+    width:0%;
+    height:100%;
+    background:linear-gradient(90deg,#3b82f6,#8b5cf6);
+    transition:0.5s;
+}
+
+.footer-note{
+    margin-top:20px;
+    color:#94a3b8;
+    font-size:13px;
+    text-align:center;
+}
+
+@media(max-width:1000px){
+    .grid{
+        grid-template-columns:1fr;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <div class="header">
+        <h1>RAG Simulator</h1>
+        <p>Understand Retrieval-Augmented Generation Step by Step</p>
+    </div>
+
+    <div class="grid">
+
+        <!-- LEFT -->
+        <div>
+
+            <div class="card">
+                <div class="section-title">1. Knowledge Base Documents</div>
+
+                <div class="documents">
+
+                    <div class="doc" data-doc="refund">
+                        <h3>Refund Policy</h3>
+                        <p>
+                            Customers can request refunds within 7 days of delivery.
+                            Refunds are processed within 3-5 business days.
+                        </p>
+                        <div class="tag">Document Chunk</div>
+                    </div>
+
+                    <div class="doc" data-doc="leave">
+                        <h3>Leave Policy</h3>
+                        <p>
+                            Employees are entitled to 24 paid leaves annually.
+                            Casual and sick leaves are included.
+                        </p>
+                        <div class="tag">Document Chunk</div>
+                    </div>
+
+                    <div class="doc" data-doc="incident">
+                        <h3>Incident SOP</h3>
+                        <p>
+                            P1 incidents must be escalated immediately to L2 support.
+                            AI system classifies incidents automatically.
+                        </p>
+                        <div class="tag">Document Chunk</div>
+                    </div>
+
+                    <div class="doc" data-doc="security">
+                        <h3>Security Policy</h3>
+                        <p>
+                            Passwords must be rotated every 90 days.
+                            MFA is mandatory for all employees.
+                        </p>
+                        <div class="tag">Document Chunk</div>
+                    </div>
+
+                </div>
+
+                <div class="section-title">2. Ask Question</div>
+
+                <textarea id="queryInput" placeholder="Example: What is the refund timeline?"></textarea>
+
+                <button onclick="runRAG()">
+                    Run RAG Pipeline
+                </button>
+
+                <div class="progress">
+                    <div class="progress-bar" id="progressBar"></div>
+                </div>
+
+                <div class="answer-box">
+                    <h3>Generated Answer</h3>
+                    <div class="answer-text" id="finalAnswer">
+                        Waiting for query...
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- RIGHT -->
+        <div>
+
+            <div class="card">
+
+                <div class="section-title">RAG Pipeline</div>
+
+                <div class="pipeline">
+
+                    <div class="step" id="step1">
+                        <h4>Step 1 — User Query</h4>
+                        <p>User asks a question.</p>
+                    </div>
+
+                    <div class="step" id="step2">
+                        <h4>Step 2 — Query Embedding</h4>
+                        <p>Query converted into vector embeddings.</p>
+                    </div>
+
+                    <div class="step" id="step3">
+                        <h4>Step 3 — Vector Search</h4>
+                        <p>Similarity search happens in vector DB.</p>
+                    </div>
+
+                    <div class="step" id="step4">
+                        <h4>Step 4 — Retrieve Chunks</h4>
+                        <p>Most relevant document chunks retrieved.</p>
+                    </div>
+
+                    <div class="step" id="step5">
+                        <h4>Step 5 — Prompt Augmentation</h4>
+                        <p>Retrieved context added to prompt.</p>
+                    </div>
+
+                    <div class="step" id="step6">
+                        <h4>Step 6 — LLM Generation</h4>
+                        <p>LLM generates grounded answer.</p>
+                    </div>
+
+                </div>
+
+                <div class="answer-box" style="margin-top:24px;">
+                    <h3>Embedding Visualization</h3>
+                    <div id="embeddingBox">
+                        Waiting...
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="footer-note">
+        Built for learning RAG • Retrieval • Embeddings • Vector DB • Semantic Search • LLM
+    </div>
+
+</div>
+
+<script>
+
+const documents = {
+    refund: {
+        keywords: ["refund","money","return","timeline","days"],
+        answer: "Customers can request refunds within 7 days of delivery. Refunds are processed within 3-5 business days."
+    },
+
+    leave: {
+        keywords: ["leave","holiday","vacation","employee","paid"],
+        answer: "Employees are entitled to 24 paid leaves annually including sick and casual leaves."
+    },
+
+    incident: {
+        keywords: ["incident","p1","support","ticket","escalate"],
+        answer: "P1 incidents must be escalated immediately to L2 support. AI system classifies incidents automatically."
+    },
+
+    security: {
+        keywords: ["password","security","mfa","login","authentication"],
+        answer: "Passwords must be rotated every 90 days and MFA is mandatory."
+    }
+};
+
+function resetPipeline(){
+
+    for(let i=1;i<=6;i++){
+        document.getElementById(`step${i}`).classList.remove("active");
+    }
+
+    document.querySelectorAll(".doc").forEach(d=>{
+        d.classList.remove("active");
+    });
+
+    document.getElementById("progressBar").style.width = "0%";
+}
+
+function activateStep(step){
+
+    document.getElementById(`step${step}`).classList.add("active");
+
+    document.getElementById("progressBar").style.width = `${step*16}%`;
+}
+
+function sleep(ms){
+    return new Promise(resolve=>setTimeout(resolve,ms));
+}
+
+function createFakeEmbedding(text){
+
+    let arr = [];
+
+    for(let i=0;i<8;i++){
+        arr.push((Math.random()*1).toFixed(2));
+    }
+
+    return arr;
+}
+
+async function runRAG(){
+
+    resetPipeline();
+
+    const query = document.getElementById("queryInput").value.trim();
+
+    if(!query){
+        alert("Please enter a question");
+        return;
+    }
+
+    document.getElementById("finalAnswer").innerHTML = "Running RAG pipeline...";
+
+    // STEP 1
+    activateStep(1);
+    await sleep(800);
+
+    // STEP 2
+    activateStep(2);
+
+    const embeddings = createFakeEmbedding(query);
+
+    document.getElementById("embeddingBox").innerHTML =
+        embeddings.map(v=>`<span class="vector">${v}</span>`).join("");
+
+    await sleep(1000);
+
+    // STEP 3
+    activateStep(3);
+
+    await sleep(1000);
+
+    // Retrieve relevant document
+    let bestMatch = null;
+    let bestScore = 0;
+
+    const lowerQuery = query.toLowerCase();
+
+    for(let key in documents){
+
+        let score = 0;
+
+        documents[key].keywords.forEach(word=>{
+            if(lowerQuery.includes(word)){
+                score++;
+            }
+        });
+
+        if(score > bestScore){
+            bestScore = score;
+            bestMatch = key;
+        }
+    }
+
+    // STEP 4
+    activateStep(4);
+
+    if(bestMatch){
+
+        document.querySelector(`[data-doc="${bestMatch}"]`)
+            .classList.add("active");
+    }
+
+    await sleep(1200);
+
+    // STEP 5
+    activateStep(5);
+
+    await sleep(1200);
+
+    // STEP 6
+    activateStep(6);
+
+    await sleep(1200);
+
+    // Generate Answer
+    let answer = "";
+
+    if(bestMatch){
+
+        answer = `
+            <span class="highlight">Retrieved Context:</span><br><br>
+            ${documents[bestMatch].answer}
+            <br><br>
+            <span class="highlight">LLM Generated Response:</span><br><br>
+            Based on the retrieved enterprise knowledge,
+            ${documents[bestMatch].answer}
+        `;
+
+    }else{
+
+        answer = `
+            No relevant document chunks found.<br><br>
+            This demonstrates a common RAG challenge:
+            <span class="highlight">Retrieval Failure</span>
+        `;
+    }
+
+    document.getElementById("finalAnswer").innerHTML = answer;
+}
+
+</script>
+
+</body>
+</html>
